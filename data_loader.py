@@ -14,7 +14,6 @@ import numpy as np
 import pandas as pd
 import pvlib
 from typing import List, Dict, Optional
-from datetime import datetime, timedelta
 import argparse
 import math
 
@@ -402,7 +401,7 @@ class OSMEscalatorLoader:
         r = 6371
         return c * r
         
-    def calculate_solar_alignments(self, lat: float, lon: float, azimuth: float) -> List[str]:
+    def calculate_solar_alignments(self, lat: float, lon: float, azimuth: float) -> List[pd.Timestamp]:
         """Calculate when the sun aligns with the escalator direction (shines straight down)."""
         try:
             # Escalator parameters
@@ -441,11 +440,7 @@ class OSMEscalatorLoader:
                 solar_position['elevation'] > 0  # Sun must be above horizon
             )
             
-            aligned_times = times[alignment_mask]
-            
-            alignment_strs = [t.strftime('%Y-%m-%d %H:%M:%S %Z') for t in aligned_times]
-            
-            return alignment_strs
+            return times[alignment_mask].tolist()
             
         except Exception as e:
             print(f"Error calculating solar alignments for escalator: {e}")
@@ -513,26 +508,19 @@ class OSMEscalatorLoader:
                 escalator_id = escalator['id']
                 solar_alignments = escalator.get('solar_alignments', [])
                 
-                for alignment_str in solar_alignments:
-                    try:
-                        # Parse the datetime string
-                        from datetime import datetime
-                        dt = datetime.strptime(alignment_str, '%Y-%m-%d %H:%M:%S %Z')
-                        
-                        row = {
-                            'escalator_id': escalator_id,
-                            'alignment_datetime': alignment_str,
-                            'year': dt.year,
-                            'month': dt.month,
-                            'day': dt.day,
-                            'hour': dt.hour,
-                            'minute': dt.minute,
-                            'timezone': alignment_str.split()[-1]  # Extract timezone
-                        }
-                        writer.writerow(row)
-                        alignment_count += 1
-                    except ValueError as e:
-                        print(f"Warning: Could not parse alignment datetime '{alignment_str}': {e}")
+                for dt in solar_alignments:
+                    row = {
+                        'escalator_id': escalator_id,
+                        'alignment_datetime': dt,
+                        'year': dt.year,
+                        'month': dt.month,
+                        'day': dt.day,
+                        'hour': dt.hour,
+                        'minute': dt.minute,
+                        'timezone': dt.tz,
+                    }
+                    writer.writerow(row)
+                    alignment_count += 1
                         
         print(f"Successfully saved {alignment_count} solar alignments to {alignments_filename}")
         
