@@ -1,7 +1,5 @@
 node_modules/
 dist/
 .observable/
-
-
 src/.observablehq/cache
-src/data
+*.csv

@@ -412,11 +412,11 @@ class OSMEscalatorLoader:
             # Create location for solar calculations
             location = pvlib.location.Location(latitude=lat, longitude=lon, tz='America/New_York')
             
-            # Generate times for the next year (every hour)
+            # Generate times for the next year (every minute)
             times = pd.date_range(
                 start='2025-01-01', 
                 end='2025-12-31', 
-                freq='1h', 
+                freq='1min', 
                 tz=location.tz
             )
             
@@ -429,7 +429,7 @@ class OSMEscalatorLoader:
             
             # Find alignments within tolerance
             azimuth_tolerance = 5  # degrees
-            elevation_tolerance = 5  # degrees
+            elevation_tolerance = 15  # degrees
             
             alignment_mask = (
                 (np.abs(solar_position['azimuth'] - target_azimuth) < azimuth_tolerance) |
@@ -443,8 +443,7 @@ class OSMEscalatorLoader:
             
             aligned_times = times[alignment_mask]
             
-            # Return up to 20 alignment times as strings
-            alignment_strs = [t.strftime('%Y-%m-%d %H:%M:%S %Z') for t in aligned_times[:20]]
+            alignment_strs = [t.strftime('%Y-%m-%d %H:%M:%S %Z') for t in aligned_times]
             
             return alignment_strs
             
@@ -503,7 +502,7 @@ class OSMEscalatorLoader:
         print(f"Successfully saved {len(escalators)} escalators to {escalators_filename}")
         
         # Save solar alignments table
-        alignment_fieldnames = ['escalator_id', 'alignment_datetime', 'year', 'month', 'day', 'hour', 'timezone']
+        alignment_fieldnames = ['escalator_id', 'alignment_datetime', 'year', 'month', 'day', 'hour', 'minute', 'timezone']
         
         with open(alignments_filename, 'w', newline='', encoding='utf-8') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=alignment_fieldnames)
@@ -527,6 +526,7 @@ class OSMEscalatorLoader:
                             'month': dt.month,
                             'day': dt.day,
                             'hour': dt.hour,
+                            'minute': dt.minute,
                             'timezone': alignment_str.split()[-1]  # Extract timezone
                         }
                         writer.writerow(row)
@@ -571,24 +571,11 @@ def main():
     parser.add_argument('--bbox', type=str, help='Bounding box in format "south,west,north,east"')
     parser.add_argument('--output', type=str, default='src/data/dc_metro_escalators.csv', 
                        help='Output CSV file path')
-    parser.add_argument('--preview', action='store_true', help='Show first 5 results without saving')
     
     args = parser.parse_args()
     
     loader = OSMEscalatorLoader()
     escalators = loader.load_escalators(bbox=args.bbox, output_file=args.output)
-    
-    if args.preview and escalators:
-        print(f"\n📋 Preview of first 5 escalators:")
-        print("-" * 80)
-        for i, escalator in enumerate(escalators[:5]):
-            print(f"{i+1}. ID: {escalator['id']}")
-            print(f"   Name: {escalator['name']}")
-            print(f"   Conveying: {escalator['conveying']}")
-            print(f"   Location: {escalator['lat']}, {escalator['lon']}")
-            print(f"   Tags: {escalator['all_tags'][:100]}{'...' if len(escalator['all_tags']) > 100 else ''}")
-            print()
-
 
 if __name__ == "__main__":
     main()
