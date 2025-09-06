@@ -10,7 +10,9 @@
       "WebSearch",
       "Bash(pip3 install:*)",
       "Bash(playwright install:*)",
-      "Bash(npm run preview:*)"
+      "Bash(npm run preview:*)",
+      "Bash(python:*)",
+      "Bash(awk:*)"
     ],
     "deny": [],
     "ask": []
