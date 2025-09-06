@@ -1,0 +1,16 @@
+{
+  "name": "metrohenge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "observable preview",
+    "build": "observable build",
+    "preview": "observable preview"
+  },
+  "devDependencies": {
+    "@observablehq/framework": "^1.0.0"
+  },
+  "dependencies": {}
+}
+

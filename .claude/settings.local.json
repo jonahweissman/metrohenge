@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm run dev:*)",
+      "Bash(npx:*)",
+      "Bash(npm run build:*)",
+      "Bash(python3:*)",
+      "WebFetch(domain:observablehq.com)",
+      "WebSearch",
+      "Bash(pip3 install:*)",
+      "Bash(playwright install:*)",
+      "Bash(npm run preview:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
