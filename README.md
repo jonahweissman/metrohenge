@@ -2,7 +2,9 @@
 
 Looking at when the sun shines directly down DC Metro escalator using Observable Framework and DuckDB-WASM.
 
-Try it now: https://github.com/jonahweissman/metrohenge
+Try it now: https://jonahweissman.github.io/metrohenge/
+
+Does not support firefox (https://github.com/duckdb/duckdb-wasm/issues/1932)
 
 ## Overview
 - Static site built with Observable Framework
