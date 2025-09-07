@@ -3,3 +3,4 @@ dist/
 .observable/
 src/.observablehq/cache
 *.csv
+*.parquet

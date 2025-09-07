@@ -445,84 +445,66 @@ class OSMEscalatorLoader:
         except Exception as e:
             print(f"Error calculating solar alignments for escalator: {e}")
             return []
+
+    def save_to_parquet(self, escalators: List[Dict], base_filename: str) -> None:
+        """Save escalator data to normalized Parquet files."""
         
-    def save_to_csv(self, escalators: List[Dict], base_filename: str) -> None:
-        """Save escalator data to normalized CSV files."""
-        
-        # Generate both table filenames from base filename
-        escalators_filename = base_filename.replace('.csv', '_escalators.csv') if base_filename.endswith('.csv') else f"{base_filename}_escalators.csv"
-        alignments_filename = base_filename.replace('.csv', '_solar_alignments.csv') if base_filename.endswith('.csv') else f"{base_filename}_solar_alignments.csv"
+        # Generate Parquet filenames
+        escalators_filename = base_filename.replace('.csv', '_escalators.parquet') if base_filename.endswith('.csv') else f"{base_filename}_escalators.parquet"
+        alignments_filename = base_filename.replace('.csv', '_solar_alignments.parquet') if base_filename.endswith('.csv') else f"{base_filename}_solar_alignments.parquet"
         
         print(f"Saving normalized data to {escalators_filename} and {alignments_filename}...")
         
-        # Save escalators table
-        escalator_fieldnames = [
-            'id', 'name', 'type', 'lat', 'lon', 'tags',
-            'version', 'changeset', 'timestamp', 'user', 'uid', 'visible',
-            'conveying', 'highway', 'incline', 'indoor', 'level', 'node_count',
-            'azimuth', 'top_lat', 'top_lon', 'station_name'
-        ]
+        # Prepare escalators table
+        escalator_rows = []
+        for escalator in escalators:
+            escalator_rows.append({
+                'id': escalator['id'],
+                'name': escalator['name'] or f"Escalator {escalator['id']}",
+                'type': 'way',
+                'lat': escalator['lat'],
+                'lon': escalator['lon'],
+                'tags': escalator['all_tags'],
+                'version': escalator['version'],
+                'changeset': escalator['changeset'],
+                'timestamp': escalator['timestamp'],
+                'user': escalator['user'],
+                'uid': escalator['uid'],
+                'visible': escalator['visible'],
+                'conveying': escalator['conveying'],
+                'highway': escalator['highway'],
+                'incline': escalator['incline'],
+                'indoor': escalator['indoor'],
+                'level': escalator['level'],
+                'node_count': len(escalator.get('node_refs', [])),
+                'azimuth': escalator.get('azimuth'),
+                'top_lat': escalator.get('top_lat'),
+                'top_lon': escalator.get('top_lon'),
+                'station_name': escalator.get('station_name', '')
+            })
         
-        with open(escalators_filename, 'w', newline='', encoding='utf-8') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=escalator_fieldnames)
-            writer.writeheader()
-            
-            for escalator in escalators:
-                row = {
-                    'id': escalator['id'],
-                    'name': escalator['name'] or f"Escalator {escalator['id']}",
-                    'type': 'way',  # All our results are ways
-                    'lat': escalator['lat'],
-                    'lon': escalator['lon'],
-                    'tags': escalator['all_tags'],
-                    'version': escalator['version'],
-                    'changeset': escalator['changeset'],
-                    'timestamp': escalator['timestamp'],
-                    'user': escalator['user'],
-                    'uid': escalator['uid'],
-                    'visible': escalator['visible'],
-                    'conveying': escalator['conveying'],
-                    'highway': escalator['highway'],
-                    'incline': escalator['incline'],
-                    'indoor': escalator['indoor'],
-                    'level': escalator['level'],
-                    'node_count': len(escalator.get('node_refs', [])),
-                    'azimuth': escalator.get('azimuth'),
-                    'top_lat': escalator.get('top_lat'),
-                    'top_lon': escalator.get('top_lon'),
-                    'station_name': escalator.get('station_name', '')
-                }
-                writer.writerow(row)
+        pd.DataFrame(escalator_rows).to_parquet(escalators_filename, index=False)
+        print(f"Successfully saved {len(escalator_rows)} escalators to {escalators_filename}")
         
-        print(f"Successfully saved {len(escalators)} escalators to {escalators_filename}")
+        # Prepare solar alignments table
+        alignment_rows = []
+        for escalator in escalators:
+            escalator_id = escalator['id']
+            for dt in escalator.get('solar_alignments', []):
+                alignment_rows.append({
+                    'escalator_id': escalator_id,
+                    'alignment_datetime': dt,
+                    'year': dt.year,
+                    'month': dt.month,
+                    'day': dt.day,
+                    'hour': dt.hour,
+                    'minute': dt.minute,
+                    'timezone': str(dt.tz),
+                })
         
-        # Save solar alignments table
-        alignment_fieldnames = ['escalator_id', 'alignment_datetime', 'year', 'month', 'day', 'hour', 'minute', 'timezone']
-        
-        with open(alignments_filename, 'w', newline='', encoding='utf-8') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=alignment_fieldnames)
-            writer.writeheader()
-            
-            alignment_count = 0
-            for escalator in escalators:
-                escalator_id = escalator['id']
-                solar_alignments = escalator.get('solar_alignments', [])
-                
-                for dt in solar_alignments:
-                    row = {
-                        'escalator_id': escalator_id,
-                        'alignment_datetime': dt,
-                        'year': dt.year,
-                        'month': dt.month,
-                        'day': dt.day,
-                        'hour': dt.hour,
-                        'minute': dt.minute,
-                        'timezone': dt.tz,
-                    }
-                    writer.writerow(row)
-                    alignment_count += 1
-                        
-        print(f"Successfully saved {alignment_count} solar alignments to {alignments_filename}")
+        pd.DataFrame(alignment_rows).to_parquet(alignments_filename, index=False)
+        print(f"Successfully saved {len(alignment_rows)} solar alignments to {alignments_filename}")
+
         
     def load_escalators(self, bbox: Optional[str] = None, output_file: str = "src/data/dc_metro_escalators.csv") -> List[Dict]:
         """Main method to load escalator data."""
@@ -535,7 +517,7 @@ class OSMEscalatorLoader:
             escalators = self.parse_osm_xml(xml_data)
             
             if escalators:
-                self.save_to_csv(escalators, output_file)
+                self.save_to_parquet(escalators, output_file)
                 print(f"\n✅ Successfully loaded {len(escalators)} DC Metro escalators!")
                 print(f"📁 Data saved to: {output_file}")
             else:

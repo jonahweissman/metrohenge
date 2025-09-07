@@ -3,3 +3,4 @@ playwright>=1.40.0
 pvlib>=0.10.0
 numpy>=1.24.0
 pandas>=2.0.0
+pyarrow>=21.0.0

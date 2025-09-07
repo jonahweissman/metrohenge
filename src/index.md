@@ -16,8 +16,8 @@ import {html} from "npm:htl";
 
 ```js
 // Initialize DuckDB client with normalized escalator and solar alignment data
-const escalators = FileAttachment("data/dc_metro_escalators_escalators.csv")
-const solar_alignments = FileAttachment("data/dc_metro_escalators_solar_alignments.csv")
+const escalators = FileAttachment("data/dc_metro_escalators_escalators.parquet")
+const solar_alignments = FileAttachment("data/dc_metro_escalators_solar_alignments.parquet")
 const db = DuckDBClient.of();
 ```
 
@@ -39,8 +39,8 @@ WITH base AS (
         e.station_name,
         sa.escalator_id,
         make_timestamp(${currentYear}, sa.month, sa.day, sa.hour, sa.minute, 0) AS this_year_ts
-    FROM read_csv('${escalators.href}') e
-    JOIN read_csv('${solar_alignments.href}') sa ON e.id = sa.escalator_id
+    FROM read_parquet('${escalators.href}') e
+    JOIN read_parquet('${solar_alignments.href}') sa ON e.id = sa.escalator_id
 ),
 next_occurrences AS (
     SELECT
@@ -90,8 +90,8 @@ WITH base AS (
         e.station_name,
         sa.escalator_id,
         make_timestamp(${currentYear}, sa.month, sa.day, sa.hour, sa.minute, 0) AS this_year_ts
-    FROM read_csv('${escalators.href}') e
-    JOIN read_csv('${solar_alignments.href}') sa ON e.id = sa.escalator_id
+    FROM read_parquet('${escalators.href}') e
+    JOIN read_parquet('${solar_alignments.href}') sa ON e.id = sa.escalator_id
 ),
 last_occurrences AS (
     SELECT
