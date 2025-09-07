@@ -8,7 +8,6 @@ Focuses on outdoor escalators (highway=steps with conveying=* tags).
 
 import requests
 import xml.etree.ElementTree as ET
-import csv
 import sys
 import numpy as np
 import pandas as pd
@@ -493,13 +492,14 @@ class OSMEscalatorLoader:
             for dt in escalator.get('solar_alignments', []):
                 alignment_rows.append({
                     'escalator_id': escalator_id,
+                    'station_name': escalator.get('station_name', ''),
                     'alignment_datetime': dt,
                     'year': dt.year,
                     'month': dt.month,
                     'day': dt.day,
                     'hour': dt.hour,
                     'minute': dt.minute,
-                    'timezone': str(dt.tz),
+                    'timezone': str(dt.tzinfo),
                 })
         
         pd.DataFrame(alignment_rows).to_parquet(alignments_filename, index=False)
