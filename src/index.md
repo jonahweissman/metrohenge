@@ -9,14 +9,11 @@ title: Metrohenge
 
 ```js
 import {DuckDBClient} from "npm:@observablehq/duckdb";
-import * as Inputs from "npm:@observablehq/inputs";
-import {html} from "npm:htl";
+import {table} from "npm:@observablehq/inputs";
 ```
 
 ```js
-// Initialize DuckDB client with normalized escalator and solar alignment data
-const escalators = FileAttachment("data/dc_metro_escalators_escalators.parquet")
-const solar_alignments = FileAttachment("data/dc_metro_escalators_solar_alignments.parquet")
+const solar_alignments = await FileAttachment("data/dc_metro_escalators_solar_alignments.parquet").href
 const db = DuckDBClient.of();
 
 
@@ -35,7 +32,7 @@ WITH base AS (
     SELECT 
         station_name,
         make_timestamptz(${currentYear}, month, day, hour, minute, 0, timezone) AS this_year_ts
-    FROM read_parquet('${solar_alignments.href}')
+    FROM read_parquet('${solar_alignments}')
 ),
 next_occurrences AS (
     SELECT
@@ -54,7 +51,6 @@ FROM next_occurrences
 WHERE alignment_datetime >= current_timestamp
 GROUP BY station_name
 ORDER BY alignment_datetime ASC;
-
 `]);
 
 ```
@@ -62,7 +58,7 @@ ORDER BY alignment_datetime ASC;
 ```js
 
 
-display(Inputs.table(upcoming, {
+display(table(upcoming, {
   columns: [
     "station_name",
     "alignment_datetime"
@@ -96,7 +92,7 @@ WITH base AS (
     SELECT 
         station_name,
         make_timestamptz(${currentYear}, month, day, hour, minute, 0, timezone) AS this_year_ts
-    FROM read_parquet('${solar_alignments.href}')
+    FROM read_parquet('${solar_alignments}')
 ),
 last_occurrences AS (
     SELECT
@@ -119,7 +115,7 @@ ORDER BY alignment_datetime DESC;
 ```
 
 ```js
-display(Inputs.table(recent, {
+display(table(recent, {
   columns: [
     "station_name",
     "alignment_datetime"

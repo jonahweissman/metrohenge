@@ -56,7 +56,6 @@ class OSMEscalatorLoader:
         
     def fetch_osm_data(self, query: str) -> str:
         """Fetch data from Overpass API."""
-        print(f"Fetching escalator data from Overpass API...")
         
         response = requests.post(
             self.overpass_url,
@@ -65,12 +64,10 @@ class OSMEscalatorLoader:
         )
         response.raise_for_status()
         
-        print(f"Retrieved {len(response.content)} bytes of OSM data")
         return response.text
         
     def parse_osm_xml(self, xml_content: str) -> List[Dict]:
         """Parse OSM XML and extract escalator data with node coordinates and station names."""
-        print("Parsing OSM XML data...")
         
         root = ET.fromstring(xml_content)
         
@@ -97,8 +94,6 @@ class OSMEscalatorLoader:
             # Track nodes that might be stations (have name tags)
             if 'name' in node_data['tags']:
                 station_nodes[node_id] = node_data
-        
-        print(f"Found {len(nodes)} nodes ({len(station_nodes)} with names)")
         
         escalators = []
         
@@ -204,7 +199,6 @@ class OSMEscalatorLoader:
             if self.is_underground_escalator(way_data['tags']):
                 escalators.append(way_data)
             
-        print(f"Found {len(escalators)} escalator ways")
         return escalators
     
     def calculate_azimuth(self, start_coord: Dict, end_coord: Dict) -> float:
@@ -442,58 +436,18 @@ class OSMEscalatorLoader:
             return times[alignment_mask].tolist()
             
         except Exception as e:
-            print(f"Error calculating solar alignments for escalator: {e}")
             return []
 
-    def save_to_parquet(self, escalators: List[Dict], base_filename: str) -> None:
+    def save_to_parquet(self, escalators: List[Dict], filename: str) -> None:
         """Save escalator data to normalized Parquet files."""
-        
-        # Generate Parquet filenames
-        escalators_filename = base_filename.replace('.csv', '_escalators.parquet') if base_filename.endswith('.csv') else f"{base_filename}_escalators.parquet"
-        alignments_filename = base_filename.replace('.csv', '_solar_alignments.parquet') if base_filename.endswith('.csv') else f"{base_filename}_solar_alignments.parquet"
-        
-        print(f"Saving normalized data to {escalators_filename} and {alignments_filename}...")
-        
-        # Prepare escalators table
-        escalator_rows = []
-        for escalator in escalators:
-            escalator_rows.append({
-                'id': escalator['id'],
-                'name': escalator['name'] or f"Escalator {escalator['id']}",
-                'type': 'way',
-                'lat': escalator['lat'],
-                'lon': escalator['lon'],
-                'tags': escalator['all_tags'],
-                'version': escalator['version'],
-                'changeset': escalator['changeset'],
-                'timestamp': escalator['timestamp'],
-                'user': escalator['user'],
-                'uid': escalator['uid'],
-                'visible': escalator['visible'],
-                'conveying': escalator['conveying'],
-                'highway': escalator['highway'],
-                'incline': escalator['incline'],
-                'indoor': escalator['indoor'],
-                'level': escalator['level'],
-                'node_count': len(escalator.get('node_refs', [])),
-                'azimuth': escalator.get('azimuth'),
-                'top_lat': escalator.get('top_lat'),
-                'top_lon': escalator.get('top_lon'),
-                'station_name': escalator.get('station_name', '')
-            })
-        
-        pd.DataFrame(escalator_rows).to_parquet(escalators_filename, index=False)
-        print(f"Successfully saved {len(escalator_rows)} escalators to {escalators_filename}")
         
         # Prepare solar alignments table
         alignment_rows = []
         for escalator in escalators:
-            escalator_id = escalator['id']
             for dt in escalator.get('solar_alignments', []):
                 alignment_rows.append({
-                    'escalator_id': escalator_id,
                     'station_name': escalator.get('station_name', ''),
-                    'alignment_datetime': dt,
+                    # 'alignment_datetime': dt,
                     'year': dt.year,
                     'month': dt.month,
                     'day': dt.day,
@@ -502,50 +456,32 @@ class OSMEscalatorLoader:
                     'timezone': str(dt.tzinfo),
                 })
         
-        pd.DataFrame(alignment_rows).to_parquet(alignments_filename, index=False)
-        print(f"Successfully saved {len(alignment_rows)} solar alignments to {alignments_filename}")
+        pd.DataFrame(alignment_rows).to_parquet(filename, index=False)
 
         
-    def load_escalators(self, bbox: Optional[str] = None, output_file: str = "src/data/dc_metro_escalators.csv") -> List[Dict]:
+    def load_escalators(self, bbox: Optional[str] = None) -> List[Dict]:
         """Main method to load escalator data."""
-        try:
-            # Build and execute query
-            query = self.build_overpass_query(bbox)
-            xml_data = self.fetch_osm_data(query)
+        # Build and execute query
+        query = self.build_overpass_query(bbox)
+        xml_data = self.fetch_osm_data(query)
+        
+        # Parse and process data
+        escalators = self.parse_osm_xml(xml_data)
+        
+        self.save_to_parquet(escalators, '/dev/stdout')
             
-            # Parse and process data
-            escalators = self.parse_osm_xml(xml_data)
+        return escalators
             
-            if escalators:
-                self.save_to_parquet(escalators, output_file)
-                print(f"\n✅ Successfully loaded {len(escalators)} DC Metro escalators!")
-                print(f"📁 Data saved to: {output_file}")
-            else:
-                print("⚠️  No escalators found with the current query")
-                
-            return escalators
-            
-        except requests.RequestException as e:
-            print(f"❌ Error fetching data from Overpass API: {e}")
-            sys.exit(1)
-        except ET.ParseError as e:
-            print(f"❌ Error parsing OSM XML: {e}")
-            sys.exit(1)
-        except Exception as e:
-            print(f"❌ Unexpected error: {e}")
-            sys.exit(1)
 
 
 def main():
     parser = argparse.ArgumentParser(description='Load DC Metro escalator data from OSM')
     parser.add_argument('--bbox', type=str, help='Bounding box in format "south,west,north,east"')
-    parser.add_argument('--output', type=str, default='src/data/dc_metro_escalators.csv', 
-                       help='Output CSV file path')
     
     args = parser.parse_args()
     
     loader = OSMEscalatorLoader()
-    escalators = loader.load_escalators(bbox=args.bbox, output_file=args.output)
+    escalators = loader.load_escalators(bbox=args.bbox)
 
 if __name__ == "__main__":
     main()
